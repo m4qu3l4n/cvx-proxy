@@ -14,7 +14,7 @@ const CACHE_TTL = 2000; // 2 segundos (más seguro)
 const WINDOW_TIME = 5 * 60 * 1000;
 const MAX_REQUESTS = 4000;
 const BAN_TIME = 30 * 60 * 1000;
-const SESSION_TIME_LIMIT = 1 * 60 * 1000; // 5 minutos
+const SESSION_TIME_LIMIT = 5 * 60 * 1000; // 5 minutos
 
 
 
