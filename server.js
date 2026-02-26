@@ -14,6 +14,9 @@ const CACHE_TTL = 2000; // 2 segundos (más seguro)
 const WINDOW_TIME = 5 * 60 * 1000;
 const MAX_REQUESTS = 4000;
 const BAN_TIME = 30 * 60 * 1000;
+const SESSION_TIME_LIMIT = 1 * 60 * 1000; // 5 minutos
+
+
 
 /* ================= MEMORIA ================= */
 
@@ -43,42 +46,49 @@ setInterval(() => {
 /* ================= SEGURIDAD ================= */
 
 function security(req, res, next) {
+
   const ip = req.ip;
   const deviceId = req.query.deviceId || 'unknown';
   const key = ip + "-" + deviceId;
   const now = Date.now();
 
   if (!clients.has(key)) {
-    clients.set(key, { count: 1, startTime: now, bannedUntil: null });
+    clients.set(key, {
+      sessionStart: now,
+      bannedUntil: null
+    });
     return next();
   }
 
   const client = clients.get(key);
 
+  // 🚫 Si está baneado
   if (client.bannedUntil && now < client.bannedUntil) {
-    return res.status(403).json({ error: "Bloqueado temporalmente" });
+    return res.status(403).json({
+      error: "Bloqueado 30 minutos"
+    });
   }
 
+  // 🔁 Si terminó el ban, reiniciar sesión
   if (client.bannedUntil && now >= client.bannedUntil) {
     client.bannedUntil = null;
-    client.count = 1;
-    client.startTime = now;
+    client.sessionStart = now;
     return next();
   }
 
-  if (now - client.startTime < WINDOW_TIME) {
-    client.count++;
-    if (client.count > MAX_REQUESTS) {
-      client.bannedUntil = now + BAN_TIME;
-      return res.status(403).json({ error: "Bloqueado 30 minutos" });
-    }
-  } else {
-    client.count = 1;
-    client.startTime = now;
+  // ⏳ Si supera 5 minutos de uso continuo
+  if (now - client.sessionStart > WINDOW_TIME) {
+
+    client.bannedUntil = now + BAN_TIME;
+
+    return res.status(403).json({
+      error: "Tiempo máximo de uso alcanzado. Bloqueado 30 minutos."
+    });
   }
 
   next();
 }
+
 
 app.use('/cvx', security);
 
