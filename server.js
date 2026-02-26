@@ -45,12 +45,28 @@ setInterval(() => {
 
 /* ================= SEGURIDAD ================= */
 
+
 function security(req, res, next) {
 
   const ip = req.ip;
-  const deviceId = req.query.deviceId || 'unknown';
-  const key = ip + "-" + deviceId;
+  const deviceId = req.query.deviceId;
   const now = Date.now();
+
+  // 🚫 Bloquear si no hay IP válida
+  if (!ip) {
+    return res.status(403).json({
+      error: "IP no detectada"
+    });
+  }
+
+  // 🚫 Bloquear si no hay deviceId
+  if (!deviceId) {
+    return res.status(403).json({
+      error: "deviceId requerido"
+    });
+  }
+
+  const key = ip + "-" + deviceId;
 
   if (!clients.has(key)) {
     clients.set(key, {
@@ -69,15 +85,15 @@ function security(req, res, next) {
     });
   }
 
-  // 🔁 Si terminó el ban, reiniciar sesión
+  // 🔁 Si terminó el ban
   if (client.bannedUntil && now >= client.bannedUntil) {
     client.bannedUntil = null;
     client.sessionStart = now;
     return next();
   }
 
-  // ⏳ Si supera 5 minutos de uso continuo
-  if (now - client.sessionStart > WINDOW_TIME) {
+  // ⏳ Si supera tiempo máximo
+  if (now - client.sessionStart > SESSION_TIME_LIMIT) {
 
     client.bannedUntil = now + BAN_TIME;
 
@@ -88,6 +104,8 @@ function security(req, res, next) {
 
   next();
 }
+
+
 
 
 app.use('/cvx', security);
